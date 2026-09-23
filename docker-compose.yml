@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: development
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      FRONTEND_ORIGIN: http://localhost:5173
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL:-}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_MODEL: ${LLM_MODEL:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
