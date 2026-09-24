@@ -10,3 +10,7 @@ node_modules/
 dist/
 .DS_Store
 
+backend/data/
+backend/.pytest_cache/
+*.db
+.vercel/

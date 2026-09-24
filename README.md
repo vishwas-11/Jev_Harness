@@ -2,28 +2,31 @@
 
 JevScale is an interactive laboratory for studying high-throughput AI decision systems. It compares Jev, traditional structured-output LLMs, and a Jev-to-LLM Hybrid policy across latency, throughput, cost, reliability, confidence, and quality.
 
-## Phase 1 status
+## Phase 2 status
 
-- FastAPI backend with health and system-status endpoints;
-- React + TypeScript + Vite control-plane shell;
-- Tailwind design foundation and responsive navigation;
-- Docker Compose for frontend and backend;
-- provider-safe environment template;
-- architecture, integration-boundary, and benchmark-methodology docs.
+The current application supports dataset management end to end:
 
-No benchmark values in the interface are presented as real results. The dashboard contains clearly labeled shell-state examples until the run engine is implemented.
+- CSV, JSONL, and Parquet inspection;
+- subject/body, ID, and optional ground-truth column mapping;
+- parser and validation reports with errors versus warnings;
+- SQLAlchemy persistence to Supabase-compatible PostgreSQL or local SQLite fallback;
+- paginated dataset previews;
+- dataset deletion;
+- saved dataset selection in New Experiment.
+
+Jev, LLM, Hybrid routing, benchmark execution, Redis, and Celery remain future phases. No benchmark values are fabricated.
 
 ## Run locally
 
+Backend:
+
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+..\backend\.venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload
 ```
 
-In another terminal:
+Frontend:
 
 ```powershell
 cd frontend
@@ -33,11 +36,18 @@ npm run dev
 
 Open `http://localhost:5173`. The API health endpoint is `http://localhost:8000/api/health`.
 
+Run backend tests:
+
+```powershell
+backend\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider backend/tests
+```
+
 Or use `docker compose up --build`.
 
-Provider keys and database credentials belong only in the backend environment and are never exposed through Vite.
+## Environment
+
+Copy `.env.example` to `.env` when credentials are available. `SUPABASE_DB_URL` is backend-only. Provider keys remain backend-only and are not needed for Phase 2.
 
 ## Next phase
 
-Phase 2 will implement dataset upload, CSV/JSONL/Parquet inspection, validation, preview, and persistence behind the Supabase repository boundary.
-
+Phase 3 will verify the current official LangChain Jev integration and implement typed multi-question classification behind a provider adapter.
