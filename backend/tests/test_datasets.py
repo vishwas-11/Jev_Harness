@@ -1,6 +1,6 @@
 import json
-from backend.app.datasets.parser import DatasetParseError,parse_dataset
-from backend.app.datasets.validator import validate_dataset
+from app.datasets.parser import DatasetParseError, parse_dataset
+from app.datasets.validator import validate_dataset
 
 def test_csv_normalizes_and_warns_empty_subject():
     parsed=parse_dataset("mail.csv",b"id,subject,body,intent\n1,,hello,refund\n")

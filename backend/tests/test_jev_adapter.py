@@ -21,12 +21,13 @@ from langchain_typesafe.client import (
 from app.ai.jev.adapter import (
     JevAuthenticationError,
     JevClassifier,
+    JevConfigurationError,
     JevProviderError,
     JevRateLimitError,
     JevTimeoutError,
 )
-from app.ai.jev.mock import MockJevClassifier
 from app.ai.models import EmailInput
+from tests.fakes.mock_jev import FakeTestJevClassifier
 
 
 @pytest.mark.asyncio
@@ -40,8 +41,17 @@ async def test_email_state_conversion():
 
 
 @pytest.mark.asyncio
+async def test_jev_classifier_missing_key_fails():
+    """Verify JevClassifier strictly fails loudly if API key is missing or empty."""
+    with pytest.raises(JevConfigurationError) as exc_info:
+        JevClassifier(api_key="")
+    assert "AI_GATEWAY_API_KEY" in str(exc_info.value)
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_mock_jev_classifier_single_email():
-    classifier = MockJevClassifier(simulated_delay_ms=0)
+    classifier = FakeTestJevClassifier(simulated_delay_ms=0)
     email = EmailInput(
         subject="Refund request for duplicate charge",
         body="I was charged twice on my credit card. Please issue a refund immediately.",
@@ -68,7 +78,7 @@ async def test_mock_jev_classifier_single_email():
 
 @pytest.mark.asyncio
 async def test_mock_jev_classifier_batch():
-    classifier = MockJevClassifier(simulated_delay_ms=0)
+    classifier = FakeTestJevClassifier(simulated_delay_ms=0)
     emails = [
         EmailInput(subject="Crash report", body="The app crashes with 500 internal server error."),
         EmailInput(subject="Win free money now", body="Congratulations! Click here to claim your lottery jackpot."),

@@ -78,8 +78,10 @@ export type ScoreDecision = {
 
 export type LatencyBreakdown = {
   state_prep_ms: number;
-  jev_request_ms: number;
-  normalization_ms: number;
+  jev_request_ms?: number | null;
+  llm_request_ms?: number | null;
+  normalization_ms?: number | null;
+  validation_ms?: number | null;
   total_ms: number;
 };
 
@@ -87,17 +89,22 @@ export type DecisionTrace = {
   request_id: string | null;
   model: string;
   provider: string;
+  strategy?: string;
   timestamp: string;
   latency: LatencyBreakdown;
   usage: {
     input_tokens: number | null;
     output_tokens: number | null;
+    total_tokens?: number | null;
   };
+  finish_reason?: string | null;
+  validation_status?: string | null;
   raw_decisions: Record<string, unknown>;
 };
 
 export type ClassificationResult = {
   id: string;
+  strategy: "jev" | "llm";
   subject: string;
   body_snippet: string;
   intent: ChoiceDecision;
@@ -120,6 +127,7 @@ export type BatchItem = {
 };
 
 export type BatchResponse = {
+  strategy: string;
   results: ClassificationResult[];
   total_count: number;
   total_latency_ms: number;
@@ -127,11 +135,12 @@ export type BatchResponse = {
 };
 
 export type ProviderStatus = {
-  configured: boolean;
-  mode: string;
-  provider: string;
+  jev_configured: boolean;
+  jev_model: string;
   gateway_url: string;
-  model: string;
+  llm_configured: boolean;
+  llm_model: string;
+  gmail_configured: boolean;
 };
 
 export type ClassificationDefinition = {
@@ -143,6 +152,29 @@ export type ClassificationDefinition = {
   spam: { instructions: string; true_criteria: string; false_criteria: string };
   requires_human: { instructions: string; true_criteria: string; false_criteria: string };
   priority: { instructions: string; rubric: string[] };
+};
+
+export type NormalizedGmailMessage = {
+  id: string;
+  thread_id: string;
+  sender: string;
+  recipients: string[];
+  subject: string;
+  body: string;
+  snippet: string;
+  received_at: string;
+  labels: string[];
+};
+
+export type GmailAuthUrlResponse = {
+  auth_url: string;
+  state: string;
+};
+
+export type GmailStatusResponse = {
+  connected: boolean;
+  email: string | null;
+  client_configured: boolean;
 };
 
 const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -188,18 +220,28 @@ export const datasetApi = {
 };
 
 export const classificationApi = {
-  test: (subject: string, body: string, forceMock = false) =>
+  test: (subject: string, body: string, strategy: "jev" | "llm" = "jev") =>
     request<ClassificationResult>("/classifications/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject, body, force_mock: forceMock }),
+      body: JSON.stringify({ subject, body, strategy }),
     }),
-  testBatch: (records: BatchItem[], forceMock = false, maxConcurrency = 5) =>
+  testBatch: (records: BatchItem[], strategy: "jev" | "llm" = "jev", maxConcurrency = 5) =>
     request<BatchResponse>("/classifications/test-batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ records, force_mock: forceMock, max_concurrency: maxConcurrency }),
+      body: JSON.stringify({ records, strategy, max_concurrency: maxConcurrency }),
     }),
   getSchema: () => request<ClassificationDefinition>("/classifications/schema"),
   getProviderStatus: () => request<ProviderStatus>("/classifications/provider-status"),
+};
+
+export const gmailApi = {
+  getStatus: () => request<GmailStatusResponse>("/gmail/status"),
+  getAuthUrl: () => request<GmailAuthUrlResponse>("/gmail/auth-url"),
+  disconnect: () => request<{ success: boolean; message: string }>("/gmail/disconnect", { method: "POST" }),
+  fetchMessages: (query = "label:INBOX", maxResults = 10) =>
+    request<NormalizedGmailMessage[]>(
+      `/gmail/fetch?query=${encodeURIComponent(query)}&max_results=${maxResults}`
+    ),
 };

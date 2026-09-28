@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
-from backend.app.main import app
-client=TestClient(app)
+from app.main import app
+client = TestClient(app)
 def test_health(): assert client.get("/api/health").status_code==200
 def test_upload_list_preview_delete():
     payload={"name":"Support sample","subject_column":"subject","body_column":"body","ground_truth_columns":'{"intent":"intent"}'}

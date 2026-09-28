@@ -2,22 +2,22 @@
 
 from .adapter import (
     JevAuthenticationError,
-    JevClassifier,
     JevClassificationError,
+    JevClassifier,
+    JevConfigurationError,
     JevProviderError,
     JevRateLimitError,
     JevTimeoutError,
 )
-from .mock import MockJevClassifier
 from .questions import build_jev_questions
 
 __all__ = [
     "JevAuthenticationError",
     "JevClassificationError",
     "JevClassifier",
+    "JevConfigurationError",
     "JevProviderError",
     "JevRateLimitError",
     "JevTimeoutError",
-    "MockJevClassifier",
     "build_jev_questions",
 ]

@@ -48,6 +48,13 @@ class JevClassificationError(Exception):
         self.status_code = status_code
 
 
+class JevConfigurationError(JevClassificationError):
+    """Raised when Jev configuration or API key is missing (HTTP 400)."""
+
+    def __init__(self, message: str = "AI_GATEWAY_API_KEY is not configured in backend/.env.") -> None:
+        super().__init__(message, status_code=400)
+
+
 class JevAuthenticationError(JevClassificationError):
     """Raised when AI Gateway authentication fails (HTTP 401/403)."""
 
@@ -91,8 +98,10 @@ class JevClassifier(BaseClassifier):
         timeout: float = 30.0,
         definition: ClassificationDefinition = DEFAULT_CLASSIFICATION_DEFINITION,
     ) -> None:
-        if not api_key:
-            raise ValueError("Jev API key or AI Gateway API key is required.")
+        if not api_key or not api_key.strip():
+            raise JevConfigurationError(
+                "AI_GATEWAY_API_KEY is not configured. Add your key to backend/.env."
+            )
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -301,17 +310,24 @@ class JevClassifier(BaseClassifier):
             request_id=response.request_id or f"jev_{uuid4().hex[:12]}",
             model=response.model or self.model,
             provider="vercel-ai-gateway",
+            strategy="jev",
             timestamp=datetime.now(UTC),
             latency=latency,
             usage={
                 "input_tokens": response.usage.input_tokens if response.usage else None,
                 "output_tokens": response.usage.output_tokens if response.usage else None,
+                "total_tokens": (
+                    (response.usage.input_tokens or 0) + (response.usage.output_tokens or 0)
+                    if response.usage
+                    else None
+                ),
             },
             raw_decisions=raw_summary,
         )
 
         return ClassificationResult(
             id=str(uuid4()),
+            strategy="jev",
             subject=email.subject,
             body_snippet=body_snippet,
             intent=intent_decision,

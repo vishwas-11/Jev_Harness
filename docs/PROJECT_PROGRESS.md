@@ -8,9 +8,9 @@ JevScale is an interactive laboratory for comparing Jev, traditional structured-
 
 # Current Phase
 
-Phase 3 — Jev Classification
+Phase 4 — Real Gmail Data + LLM Baseline
 
-Status: COMPLETE
+Status: IMPLEMENTED & TESTED (Live Credentials Pending)
 
 ---
 
@@ -22,11 +22,7 @@ Status: COMPLETE
 
 Summary: Created the FastAPI and React/Vite application shell, Docker Compose skeleton, provider-safe environment template, benchmark boundary, and initial architecture documentation.
 
-Important decisions: The browser is the control plane; FastAPI owns secrets and orchestration. Jev and LLM providers will be isolated behind backend adapters. Phase 1 uses polling-compatible REST boundaries and does not make provider calls.
-
 Files: `backend/app/main.py`, `backend/app/config.py`, `frontend/src/app/App.tsx`, `frontend/src/styles.css`, `docker-compose.yml`, `README.md`, `docs/01-system-architecture.md`.
-
-Validation: Frontend production build passed. Backend Python compilation passed.
 
 ## Phase 2 — Dataset Management
 
@@ -34,28 +30,41 @@ Status: COMPLETE
 
 Summary: Implemented CSV, JSONL, and Parquet ingestion through one normalized record pipeline, validation, SQLAlchemy persistence, dataset APIs, browser upload/mapping/preview, and New Experiment dataset selection.
 
-Important decisions: All formats converge into `DatasetRecord` before validation and persistence. Local SQLite is a development fallback; Supabase/PostgreSQL remains the production target. Preview is paginated and bounded so the browser never loads an entire large dataset.
-
 Files: `backend/app/db.py`, `backend/app/models.py`, `backend/app/schemas.py`, `backend/app/datasets/*`, `frontend/src/pages/DatasetsPage.tsx`, `frontend/src/services/api.ts`, `docs/02-dataset-pipeline.md`.
-
-Validation: 5 dataset and API tests passed.
 
 ## Phase 3 — Jev Classification
 
 Status: COMPLETE
 
-Summary: Implemented end-to-end Jev decision model integration using LangChain (`langchain-typesafe`) routed through Vercel AI Gateway (`typesafe-ai/jev`). Created typed decision primitives (`Choice`, `Noul`, `Score`), multi-question single-request evaluation across 7 support dimensions, latency breakdown instrumentation, safe error handling, zero-credential mock engine, and an interactive React Classification Playground with trace inspection and batch testing.
+Summary: Implemented end-to-end Jev decision model integration using LangChain (`langchain-typesafe`) routed through Vercel AI Gateway (`typesafe-ai/jev`). Created typed decision primitives (`Choice`, `Noul`, `Score`), multi-question single-request evaluation across 7 support dimensions, latency breakdown instrumentation, and interactive React Classification Playground.
+
+## Phase 4 — Real Gmail Data + LLM Baseline
+
+Status: IMPLEMENTED & TESTED
+
+Summary:
+- Integrated real LLM baseline (`gpt-4o-mini`) via LangChain `ChatOpenAI` enforcing native structured output (`method="json_schema", strict=True`) with 100% semantic and taxonomy equivalence to Jev.
+- Implemented ephemeral personal Gmail ingestion via Google OAuth 2.0 (`gmail.readonly`) with in-memory token management, MIME parsing/decoding, and strict privacy guarantees (zero DB writes of raw email bodies).
+- Stripped all runtime mock fallbacks: missing API keys fail loudly with HTTP 400 (`JevConfigurationError`, `LLMConfigurationError`), and upstream errors (401, 429, 504) propagate as structured backend errors.
+- Test-only fake classifier isolated strictly in `backend/tests/fakes/mock_jev.py`.
+- Updated React Playground with strategy toggle (`Jev` vs `LLM`), discrete latency boundary breakdowns, Gmail connect/fetch/classify drawer, and taxonomy viewer.
+- All 28 automated backend unit tests and frontend production build pass with zero errors.
+
+Files: `backend/app/ai/llm/*`, `backend/app/gmail/*`, `backend/app/ai/factory.py`, `backend/app/ai/jev/adapter.py`, `backend/app/classifications/router.py`, `frontend/src/pages/ClassificationsPlayground.tsx`, `frontend/src/services/api.ts`, `docs/04-llm-baseline.md`.
 
 ---
 
 # Current Architecture
 
 The system consists of:
-1. **React Control Plane**: Ingests datasets, explores schemas, runs interactive Jev classifications, inspects decision traces, and visualizes latency breakdowns.
+1. **React Control Plane**: Ingests datasets, connects personal Gmail accounts ephemerally, selects classifier strategy (`Jev` vs `LLM`), inspects structured output validations, and displays discrete latency breakdowns.
 2. **FastAPI Backend**:
    - `datasets/`: Synchronous dataset parsing, mapping, validation, and preview.
+   - `gmail/`: Ephemeral OAuth 2.0 handshake, Google token lifecycle in session memory, MIME decoding, and email normalization.
    - `ai/`: Provider-agnostic classification domain models, definitions, and classifier interfaces.
-   - `ai/jev/`: Adapter connecting LangChain `TypeSafeClassifier` to Vercel AI Gateway (`POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`) and high-fidelity local `MockJevClassifier`.
+   - `ai/jev/`: Adapter connecting LangChain `TypeSafeClassifier` to Vercel AI Gateway (`typesafe-ai/jev`). Fails loudly on missing key.
+   - `ai/llm/`: Adapter connecting LangChain `ChatOpenAI` (`gpt-4o-mini`) with strict Pydantic JSON schema structured output. Fails loudly on missing key.
+   - `ai/factory.py`: Strict factory returning `JevClassifier` or `LLMClassifier` with zero silent fallback.
    - `classifications/`: REST endpoints for single-email test classification, small batch evaluation, and taxonomy inspection.
 
 ---
