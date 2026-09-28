@@ -46,31 +46,39 @@ async def test_get_provider_status():
 @pytest.mark.asyncio
 async def test_post_test_classification_unconfigured_fails_loudly():
     """Verify that calling test classification without credentials fails with 400 and NO silent mock."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Default Jev strategy
-        response = await client.post(
-            "/api/classifications/test",
-            json={
-                "subject": "Need help with refund",
-                "body": "I was double charged.",
-                "strategy": "jev",
-            },
-        )
-        assert response.status_code == 400
-        assert "AI_GATEWAY_API_KEY" in response.json()["detail"]
+    from app.config import Settings, get_settings
 
-        # LLM strategy
-        response_llm = await client.post(
-            "/api/classifications/test",
-            json={
-                "subject": "Need help with refund",
-                "body": "I was double charged.",
-                "strategy": "llm",
-            },
-        )
-        assert response_llm.status_code == 400
-        assert "OPENAI_API_KEY" in response_llm.json()["detail"]
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        ai_gateway_api_key="", openai_api_key=""
+    )
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Default Jev strategy
+            response = await client.post(
+                "/api/classifications/test",
+                json={
+                    "subject": "Need help with refund",
+                    "body": "I was double charged.",
+                    "strategy": "jev",
+                },
+            )
+            assert response.status_code == 400
+            assert "AI_GATEWAY_API_KEY" in response.json()["detail"]
+
+            # LLM strategy
+            response_llm = await client.post(
+                "/api/classifications/test",
+                json={
+                    "subject": "Need help with refund",
+                    "body": "I was double charged.",
+                    "strategy": "llm",
+                },
+            )
+            assert response_llm.status_code == 400
+            assert "OPENAI_API_KEY" in response_llm.json()["detail"]
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
 
 
 @pytest.mark.asyncio

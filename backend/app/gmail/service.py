@@ -96,7 +96,16 @@ class GmailService:
             resp = await client.post(GOOGLE_TOKEN_URL, data=data)
             if not resp.is_success:
                 logger.error("OAuth token exchange failed: %s", resp.text)
-                raise GmailAuthenticationError("Failed to exchange authorization code for tokens.")
+                err_detail = "Failed to exchange authorization code for tokens."
+                try:
+                    err_json = resp.json()
+                    if "error_description" in err_json:
+                        err_detail = err_json["error_description"]
+                    elif "error" in err_json:
+                        err_detail = str(err_json["error"])
+                except Exception:
+                    pass
+                raise GmailAuthenticationError(f"Google OAuth failed: {err_detail}")
 
             self._tokens = resp.json()
 
@@ -250,8 +259,8 @@ class GmailService:
 _gmail_singleton: GmailService | None = None
 
 
-def get_gmail_service(settings: Settings | None = None) -> GmailService:
+def get_gmail_service() -> GmailService:
     global _gmail_singleton
     if _gmail_singleton is None:
-        _gmail_singleton = GmailService(settings=settings)
+        _gmail_singleton = GmailService(settings=get_settings())
     return _gmail_singleton

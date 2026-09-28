@@ -49,7 +49,6 @@ async def get_auth_url(
 async def oauth_callback(
     req: GmailCallbackRequest,
     service: GmailService = Depends(get_gmail_service),
-    settings: Settings = Depends(get_settings),
 ) -> GmailStatusResponse:
     """Exchange authorization code from Google OAuth redirect for access token."""
     try:
@@ -57,7 +56,7 @@ async def oauth_callback(
         return GmailStatusResponse(
             connected=True,
             email=email,
-            client_id_configured=settings.has_gmail_credentials,
+            client_id_configured=service.settings.has_gmail_credentials,
         )
     except GmailError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
