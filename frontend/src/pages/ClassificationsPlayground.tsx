@@ -90,6 +90,26 @@ export default function ClassificationsPlayground() {
     fetchProviderStatus();
     classificationApi.getSchema().then(setSchema).catch(() => null);
     checkGmailStatus();
+
+    // Check if returning from Google OAuth redirect with ?code=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    if (code) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setActiveTab("gmail");
+      setGmailNotice("Authenticating with Google...");
+      gmailApi
+        .exchangeCode(code)
+        .then((st) => {
+          setGmailConnected(st.connected);
+          setGmailEmail(st.email);
+          setGmailNotice(`Connected successfully as ${st.email}`);
+        })
+        .catch((err: any) => {
+          setError(err?.message || "Failed to exchange Google OAuth code.");
+          setGmailNotice(null);
+        });
+    }
   }, []);
 
   const fetchProviderStatus = () => {

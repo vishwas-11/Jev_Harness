@@ -239,6 +239,12 @@ export const classificationApi = {
 export const gmailApi = {
   getStatus: () => request<GmailStatusResponse>("/gmail/status"),
   getAuthUrl: () => request<GmailAuthUrlResponse>("/gmail/auth-url"),
+  exchangeCode: (code: string) =>
+    request<GmailStatusResponse>("/gmail/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    }),
   disconnect: () => request<{ success: boolean; message: string }>("/gmail/disconnect", { method: "POST" }),
   fetchMessages: (query = "label:INBOX", maxResults = 10) =>
     request<NormalizedGmailMessage[]>(
