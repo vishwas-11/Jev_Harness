@@ -236,6 +236,12 @@ export const classificationApi = {
   getProviderStatus: () => request<ProviderStatus>("/classifications/provider-status"),
 };
 
+export type GmailFetchResponse = {
+  messages: NormalizedGmailMessage[];
+  total_fetched: number;
+  query: string;
+};
+
 export const gmailApi = {
   getStatus: () => request<GmailStatusResponse>("/gmail/status"),
   getAuthUrl: () => request<GmailAuthUrlResponse>("/gmail/auth-url"),
@@ -246,8 +252,10 @@ export const gmailApi = {
       body: JSON.stringify({ code }),
     }),
   disconnect: () => request<{ success: boolean; message: string }>("/gmail/disconnect", { method: "POST" }),
-  fetchMessages: (query = "label:INBOX", maxResults = 10) =>
-    request<NormalizedGmailMessage[]>(
+  fetchMessages: async (query = "label:INBOX", maxResults = 10): Promise<NormalizedGmailMessage[]> => {
+    const res = await request<GmailFetchResponse>(
       `/gmail/fetch?query=${encodeURIComponent(query)}&max_results=${maxResults}`
-    ),
+    );
+    return res.messages;
+  },
 };

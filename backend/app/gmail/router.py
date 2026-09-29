@@ -71,12 +71,32 @@ async def disconnect(
     return {"status": "disconnected"}
 
 
+@router.get("/fetch", response_model=GmailFetchResponse)
+async def fetch_messages_get(
+    query: str = "label:INBOX",
+    max_results: int = 10,
+    service: GmailService = Depends(get_gmail_service),
+) -> GmailFetchResponse:
+    """Fetch real emails via GET query parameters held ephemerally in memory."""
+    try:
+        messages = await service.fetch_messages(
+            query=query, max_results=max_results
+        )
+        return GmailFetchResponse(
+            messages=messages,
+            total_fetched=len(messages),
+            query=query,
+        )
+    except GmailError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
 @router.post("/fetch", response_model=GmailFetchResponse)
-async def fetch_messages(
+async def fetch_messages_post(
     req: GmailFetchRequest,
     service: GmailService = Depends(get_gmail_service),
 ) -> GmailFetchResponse:
-    """Fetch real emails held ephemerally in memory without database persistence."""
+    """Fetch real emails via POST body held ephemerally in memory."""
     try:
         messages = await service.fetch_messages(
             query=req.query, max_results=req.max_results
