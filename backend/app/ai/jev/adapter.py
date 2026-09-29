@@ -20,6 +20,7 @@ from langchain_typesafe.client import (
     TypeSafeAPIResponseValidationError,
     TypeSafeAPITimeoutError,
     TypeSafeAuthenticationError,
+    TypeSafePermissionDeniedError,
     TypeSafeRateLimitError,
 )
 
@@ -56,10 +57,17 @@ class JevConfigurationError(JevClassificationError):
 
 
 class JevAuthenticationError(JevClassificationError):
-    """Raised when AI Gateway authentication fails (HTTP 401/403)."""
+    """Raised when AI Gateway authentication fails (HTTP 401)."""
 
     def __init__(self, message: str = "Vercel AI Gateway authentication failed.") -> None:
         super().__init__(message, status_code=401)
+
+
+class JevPermissionError(JevClassificationError):
+    """Raised when AI Gateway rejects request due to customer verification or permission (HTTP 403)."""
+
+    def __init__(self, message: str = "Vercel AI Gateway permission denied or customer verification required.") -> None:
+        super().__init__(message, status_code=403)
 
 
 class JevRateLimitError(JevClassificationError):
@@ -135,8 +143,21 @@ class JevClassifier(BaseClassifier):
         try:
             response: ClassifierResponse = await self._classifier.ainvoke(request)
         except TypeSafeAuthenticationError as exc:
-            logger.error("AI Gateway authentication error: %s", exc)
-            raise JevAuthenticationError("AI Gateway or TypeSafe authentication failed.") from exc
+            msg = "AI Gateway authentication failed. Check AI_GATEWAY_API_KEY."
+            if isinstance(getattr(exc, "body", None), dict) and "error" in exc.body:
+                err = exc.body["error"]
+                if isinstance(err, dict) and "message" in err:
+                    msg = err["message"]
+            logger.error("AI Gateway authentication error: %s", msg)
+            raise JevAuthenticationError(msg) from exc
+        except TypeSafePermissionDeniedError as exc:
+            msg = "Vercel AI Gateway requires customer verification (credit card on file) to unlock usage."
+            if isinstance(getattr(exc, "body", None), dict) and "error" in exc.body:
+                err = exc.body["error"]
+                if isinstance(err, dict) and "message" in err:
+                    msg = err["message"]
+            logger.error("Vercel AI Gateway permission denied: %s", msg)
+            raise JevPermissionError(msg) from exc
         except TypeSafeRateLimitError as exc:
             logger.warning("AI Gateway rate limit exceeded: %s", exc)
             raise JevRateLimitError("Rate limit exceeded on Vercel AI Gateway.") from exc
@@ -147,11 +168,16 @@ class JevClassifier(BaseClassifier):
             logger.error("Response validation failed from Jev: %s", exc)
             raise JevProviderError("Invalid response received from Jev.") from exc
         except (TypeSafeAPIConnectionError, TypeSafeAPIError) as exc:
-            logger.error("Upstream error connecting to Jev: %s", exc)
-            raise JevProviderError("Failed to communicate with Jev via AI Gateway.") from exc
+            msg = f"Failed to communicate with Jev via AI Gateway: {exc}"
+            if isinstance(getattr(exc, "body", None), dict) and "error" in exc.body:
+                err = exc.body["error"]
+                if isinstance(err, dict) and "message" in err:
+                    msg = err["message"]
+            logger.error("Upstream error connecting to Jev: %s", msg)
+            raise JevProviderError(msg, status_code=getattr(exc, "status_code", 502)) from exc
         except Exception as exc:
             logger.exception("Unexpected error during Jev classification: %s", exc)
-            raise JevProviderError("Internal error during Jev classification.") from exc
+            raise JevProviderError(f"Internal error during Jev classification: {exc}") from exc
 
         jev_request_ms = (time.perf_counter() - t1) * 1000.0
 
